@@ -1,4 +1,4 @@
-# Job Search Assistant
+# Job Search Assistant MacOS
 
 A local-first web app for managing your job search. Track applications, visit job boards, store documents, and keep notes — all in a SQLite database that lives on your machine. Nothing is sent to any server.
 
