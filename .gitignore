@@ -1,0 +1,8 @@
+venv/
+jobs.db
+uploads/
+__pycache__/
+*.pyc
+.DS_Store
+/tmp/
+*.log

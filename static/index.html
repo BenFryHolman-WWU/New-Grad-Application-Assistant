@@ -1,0 +1,1917 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Job Search Assistant</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root {
+  --blue:    #2563eb;
+  --blue-dk: #1d4ed8;
+  --blue-lt: #eff6ff;
+  --grad:    linear-gradient(135deg, #1e40af 0%, #6d28d9 45%, #c026d3 100%);
+  --grad-dk: linear-gradient(135deg, #1e3a8a 0%, #5b21b6 45%, #a21caf 100%);
+  --bg:      #f4f5f7;
+  --surface: #ffffff;
+  --border:  #e2e4e9;
+  --text:    #111827;
+  --muted:   #6b7280;
+  --radius:  8px;
+  --shadow:  0 1px 6px rgba(0,0,0,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+header{background:var(--grad);color:#fff;padding:13px 28px;display:flex;align-items:center;gap:10px}
+header h1{font-size:1.15rem;font-weight:700;letter-spacing:-.01em}
+header .hd-date{font-size:.8rem;opacity:.75;margin-left:auto}
+
+.stats-bar{display:flex;background:#fff;border-bottom:1px solid var(--border)}
+.stat{flex:1;padding:13px 20px;text-align:center;border-right:1px solid var(--border)}
+.stat:last-child{border-right:none}
+.stat .val{font-size:1.65rem;font-weight:800;line-height:1;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.stat .lbl{font-size:.68rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-top:3px}
+.stat-val-row{display:flex;align-items:baseline;justify-content:center;gap:6px}
+.stat-goal{display:none}
+.goal-lbl{font-size:.85rem;font-weight:600;color:var(--muted)}
+.stat-streak{font-size:.67rem;color:var(--muted);margin-top:2px;min-height:14px}
+.stat-streak.active{color:#16a34a;font-weight:600}
+.stat-goal .goal-lbl{font-size:.72rem;color:var(--muted)}
+
+.tab-nav{display:flex;background:#fff;border-bottom:1px solid var(--border)}
+.tab-btn{flex:1;text-align:center;padding:12px 8px;border:none;background:none;font-size:.875rem;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap;font-family:inherit}
+.tab-btn:hover{color:var(--blue)}
+.tab-btn.active{color:#7c3aed;border-bottom-color:#7c3aed;background:linear-gradient(to bottom,#faf5ff,#fff)}
+.pane{display:none;padding:20px 24px;max-width:1300px;margin:0 auto}
+.pane.active{display:block}
+
+.card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:18px;margin-bottom:14px}
+.section-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px;flex-wrap:wrap}
+.section-hd h2{font-size:.95rem;font-weight:600}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.fg{display:flex;flex-direction:column;gap:4px}
+.fg label{font-size:.71rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+input,select,textarea{border:1px solid var(--border);border-radius:5px;padding:7px 10px;font-size:.875rem;font-family:inherit;outline:none;background:#fff;transition:border-color .15s;color:var(--text)}
+input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.btn{padding:7px 14px;border-radius:5px;border:none;cursor:pointer;font-size:.84rem;font-weight:500;transition:all .15s;font-family:inherit}
+.btn-p{background:var(--grad);color:#fff;border:none}
+.btn-p:hover{opacity:.9}
+.btn-s{background:var(--bg);color:var(--muted);border:1px solid var(--border)}
+.btn-s:hover{border-color:var(--blue);color:var(--blue)}
+.btn-d{background:#fee2e2;color:#dc2626}
+.btn-d:hover{background:#fecaca}
+.btn-sm{padding:4px 9px;font-size:.77rem}
+.btn-icon{background:none;border:none;cursor:pointer;padding:4px 6px;border-radius:4px;color:var(--muted);font-size:.85rem;transition:all .15s}
+.btn-icon:hover{background:var(--bg);color:var(--blue)}
+.empty{text-align:center;padding:40px 20px;color:var(--muted);font-size:.875rem}
+
+.filters{display:flex;gap:7px;margin-bottom:16px;flex-wrap:wrap}
+.flt{padding:5px 13px;border-radius:20px;border:1px solid var(--border);background:#fff;font-size:.79rem;cursor:pointer;transition:all .15s;font-family:inherit}
+.flt:hover,.flt.active{background:var(--grad);color:#fff;border-color:var(--blue)}
+
+.boards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(288px,1fr));gap:9px}
+.board-card{background:#fff;border-radius:var(--radius);border:1px solid var(--border);padding:11px 13px;display:flex;align-items:center;gap:9px;transition:box-shadow .15s}
+.board-card:hover{box-shadow:var(--shadow)}
+.vdot{width:9px;height:9px;border-radius:50%;background:#d1d5db;flex-shrink:0;transition:background .3s}
+.vdot.on{background:#16a34a}
+@keyframes goldpulse{0%,100%{opacity:1}50%{opacity:.6}}
+.binfo{flex:1;min-width:0}
+.bname{font-weight:600;font-size:.875rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bmeta{display:flex;align-items:center;gap:6px;margin-top:3px}
+.badge{font-size:.66rem;padding:2px 7px;border-radius:20px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+.bg{background:#dbeafe;color:#1e40af}
+.bt{background:#e0e7ff;color:#3730a3}
+.bs{background:#dcfce7;color:#15803d}
+.bu{background:#fef9c3;color:#92400e}
+.br{background:#fee2e2;color:#b91c1c}
+.bts{font-size:.7rem;color:var(--muted)}
+.visit-btn{font-size:.77rem;padding:5px 10px;flex-shrink:0}
+.visit-btn.visited{background:#dcfce7;color:#15803d;border-color:#bbf7d0;font-weight:600}
+
+.links-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:9px}
+.link-card{background:#fff;border-radius:var(--radius);border:1px solid var(--border);padding:11px 13px;display:flex;align-items:center;gap:9px}
+.ldot{width:11px;height:11px;border-radius:50%;flex-shrink:0}
+.lname{font-weight:600;font-size:.875rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lactions{display:flex;gap:5px;flex-shrink:0}
+
+.contacts-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:9px}
+.contact-card{background:#fff;border-radius:var(--radius);border:1px solid var(--border);padding:14px 16px}
+.contact-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px}
+.contact-name{font-weight:700;font-size:.9rem}
+.contact-sub{font-size:.78rem;color:var(--muted);margin-top:1px}
+.contact-fields{display:flex;flex-direction:column;gap:6px}
+.cfield{display:flex;align-items:center;gap:8px}
+.cfield-lbl{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);min-width:38px}
+.cfield-val{font-size:.82rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.copy-btn{padding:2px 7px;font-size:.72rem;border-radius:4px;background:var(--bg);border:1px solid var(--border);cursor:pointer;color:var(--muted);flex-shrink:0;transition:all .15s}
+.copy-btn:hover{border-color:var(--blue);color:var(--blue)}
+
+.xl-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.xl-toolbar h2{font-size:.95rem;font-weight:600;margin-right:auto}
+.xl-outer{border:1px solid #c8c8c8;border-radius:4px;overflow:hidden;box-shadow:0 1px 5px rgba(0,0,0,.09)}
+.xl-scroll{overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 300px)}
+.xl-table{width:100%;border-collapse:collapse;font-size:.835rem;white-space:nowrap}
+.xl-table thead th{background:#f0f0f0;border:1px solid #c0c0c0;padding:6px 10px;font-weight:600;font-size:.77rem;text-align:left;position:sticky;top:0;z-index:2;user-select:none;letter-spacing:.01em;color:#333}
+.xl-table thead th.rn{background:#e8e8e8;width:36px;min-width:36px;text-align:center;color:#888;font-weight:400;position:sticky;left:0;z-index:3}
+.xl-table tbody td{border:1px solid #d8d8d8;padding:5px 9px;vertical-align:middle;background:#fff;max-width:220px;overflow:hidden;text-overflow:ellipsis}
+.xl-table tbody td.rn{background:#f5f5f5;color:#999;font-size:.75rem;text-align:center;width:36px;min-width:36px;position:sticky;left:0;z-index:1;border-right:2px solid #c0c0c0}
+.xl-table tbody tr:nth-child(even) td{background:#fafafa}
+.xl-table tbody tr:nth-child(even) td.rn{background:#f0f0f0}
+.xl-table tbody tr:hover td{background:#e8f0fe!important;cursor:pointer}
+.xl-table tbody tr:hover td.rn{background:#d8e6fd!important}
+.xl-pill{font-size:.72rem;padding:2px 8px;border-radius:3px;font-weight:600;display:inline-block}
+.xl-Applied{background:#dbeafe;color:#1e40af}
+.xl-Under{background:#fef3c7;color:#92400e}
+.xl-Rejected{background:#fee2e2;color:#b91c1c}
+.xl-Offer{background:#dcfce7;color:#15803d}
+.xl-Withdrawn{background:#f3f4f6;color:#4b5563}
+.xl-Ghosted{background:#f3f4f6;color:#6b7280}
+.xl-link{color:var(--blue);text-decoration:none;font-size:.8rem}
+.xl-link:hover{text-decoration:underline}
+.xl-act{display:flex;gap:4px}
+.xl-empty{padding:40px;text-align:center;color:var(--muted);font-size:.875rem;background:#fff}
+
+.status-pipeline{display:flex;flex-wrap:wrap;gap:6px;padding:10px 14px;background:#fff;border-bottom:1px solid var(--border)}
+.sp-pill{font-size:.72rem;padding:3px 10px;border-radius:3px;font-weight:600;cursor:pointer;border:2px solid transparent;opacity:.75;transition:all .15s}
+.sp-pill:hover{opacity:1}
+.sp-pill.active{opacity:1;border-color:currentColor}
+.sp-pill .sp-count{font-size:.78rem;margin-left:4px;opacity:.8}
+
+.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.cal-legend{font-size:.72rem;color:var(--muted);display:flex;align-items:center;gap:4px;margin-bottom:12px}
+.cal-leg-dot{display:inline-block;width:10px;height:10px;border-radius:50%}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal-dow{text-align:center;font-size:.7rem;font-weight:600;color:var(--muted);padding-bottom:4px}
+.cal-day{min-height:64px;border:1px solid var(--border);border-radius:6px;padding:5px 7px;background:#fff;position:relative;font-size:.75rem}
+.cal-day.empty{background:#fafafa;border-color:#f0f0f0}
+.cal-day.today{border-color:#7c3aed;box-shadow:0 0 0 1px #7c3aed22}
+.cal-num{font-weight:600;color:var(--muted);font-size:.72rem;margin-bottom:4px}
+.cal-num.today{color:#7c3aed}
+.cal-chips{display:flex;flex-direction:column;gap:3px}
+.cal-chip{font-size:.67rem;border-radius:3px;padding:1px 5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-chip.boards{background:#dcfce7;color:#15803d}
+.cal-chip.apps{background:#dbeafe;color:#1e40af}
+
+.weekly-summary{background:#f8fafc;border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:16px;font-size:.82rem}
+.ws-title{font-weight:700;font-size:.85rem;margin-bottom:8px;color:var(--text)}
+.ws-row{display:flex;flex-wrap:wrap;gap:12px}
+.ws-stat{display:flex;flex-direction:column;align-items:center;background:#fff;border:1px solid var(--border);border-radius:6px;padding:8px 14px}
+.ws-val{font-size:1.3rem;font-weight:700;color:var(--blue)}
+.ws-lbl{font-size:.68rem;color:var(--muted);margin-top:1px}
+.ws-days{display:flex;gap:4px;margin-top:8px}
+.ws-day{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.65rem;color:var(--muted)}
+.ws-day-dot{width:20px;height:20px;border-radius:50%;background:#e5e7eb;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:600}
+.ws-day-dot.hit{background:#4ade80;color:#14532d}
+
+.doc-upload-area{display:block;width:100%;border:2px dashed var(--border);border-radius:var(--radius);padding:36px 28px;text-align:center;transition:all .15s;cursor:pointer;margin-bottom:16px}
+.doc-upload-area:hover,.doc-upload-area.drag{border-color:var(--blue);background:var(--blue-lt)}
+.doc-upload-icon{font-size:2rem;margin-bottom:8px}
+.doc-upload-txt{font-size:.875rem;color:var(--muted)}
+.doc-upload-txt strong{color:var(--blue);cursor:pointer}
+.docs-list{display:flex;flex-direction:column;gap:8px}
+.doc-item{background:#fff;border-radius:var(--radius);border:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;gap:12px}
+.doc-icon{font-size:1.4rem;flex-shrink:0}
+.doc-info{flex:1;min-width:0}
+.doc-name{font-weight:600;font-size:.875rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.doc-meta{font-size:.75rem;color:var(--muted);margin-top:2px}
+.doc-actions{display:flex;gap:6px;flex-shrink:0}
+
+.notes-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.note-wrap{display:flex;flex-direction:column;gap:6px}
+.note-wrap h3{font-size:.77rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.note-wrap textarea{height:320px;resize:vertical;font-size:.875rem;line-height:1.6;padding:11px}
+.save-ind{font-size:.71rem;color:#16a34a;height:16px}
+
+.modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:500;opacity:0;pointer-events:none;transition:opacity .2s}
+.modal-ov.open{opacity:1;pointer-events:all}
+.modal{background:#fff;border-radius:10px;width:680px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25);display:flex;flex-direction:column}
+.modal-hd{display:flex;align-items:center;justify-content:space-between;padding:18px 22px 14px;border-bottom:1px solid var(--border)}
+.modal-hd h3{font-size:1rem;font-weight:700}
+.modal-close{background:none;border:none;font-size:1.4rem;line-height:1;cursor:pointer;color:var(--muted);padding:2px 6px;border-radius:4px}
+.modal-close:hover{background:var(--bg);color:var(--text)}
+.modal-body{padding:20px 22px;flex:1}
+.modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.modal-grid .span2{grid-column:1/-1}
+.modal-ft{display:flex;justify-content:flex-end;gap:8px;padding:14px 22px 18px;border-top:1px solid var(--border)}
+@media(max-width:500px){.modal-grid{grid-template-columns:1fr}}
+
+#toast{position:fixed;bottom:20px;right:20px;background:#111827;color:#fff;padding:9px 16px;border-radius:7px;font-size:.84rem;transform:translateY(60px);opacity:0;transition:all .22s;z-index:9999;pointer-events:none}
+#toast.show{transform:translateY(0);opacity:1}
+</style>
+</head>
+<body>
+
+<header>
+  <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+  </svg>
+  <h1>Job Search Assistant</h1>
+  <span class="hd-date" id="hd-date"></span>
+</header>
+
+<div class="stats-bar">
+  <div class="stat"><div class="val" id="s-total">0</div><div class="lbl">Total Applied</div></div>
+  <div class="stat">
+    <div class="stat-val-row"><div class="val" id="s-week">0</div><span class="goal-lbl" id="week-goal-display"></span></div>
+    <div class="lbl">This Week</div>
+    <div class="stat-streak" id="s-week-streak"></div>
+  </div>
+  <div class="stat">
+    <div class="stat-val-row"><div class="val" id="s-today">0</div><span class="goal-lbl" id="boards-goal-display"></span></div>
+    <div class="lbl">Boards Today</div>
+    <div class="stat-streak" id="s-boards-streak"></div>
+  </div>
+  <div class="stat">
+    <div class="stat-val-row"><div class="val" id="s-applied-today">0</div><span class="goal-lbl" id="goal-display"></span></div>
+    <div class="lbl">Applied Today</div>
+    <div class="stat-streak" id="s-apps-streak"></div>
+  </div>
+</div>
+
+<nav class="tab-nav">
+  <button class="tab-btn active" data-tab="boards">Job Boards</button>
+  <button class="tab-btn" data-tab="links">My Links</button>
+  <button class="tab-btn" data-tab="tracker">Applications</button>
+  <button class="tab-btn" data-tab="calendar">Calendar</button>
+  <button class="tab-btn" data-tab="docs">Documents</button>
+  <button class="tab-btn" data-tab="notes">Notes</button>
+</nav>
+
+<div id="pane-boards" class="pane active">
+  <div class="filters" id="cat-filters">
+    <button class="flt active" data-cat="all">All</button>
+    <button class="flt" data-cat="general">General</button>
+    <button class="flt" data-cat="tech">Tech</button>
+    <button class="flt" data-cat="remote">Remote</button>
+    <button class="flt" data-cat="other">Other</button>
+  </div>
+  <div class="boards-grid" id="boards-grid"></div>
+</div>
+
+<div id="pane-links" class="pane">
+  <div class="card">
+    <div class="section-hd"><h2>Quick Links</h2></div>
+    <div class="row">
+      <div class="fg"><label>Label</label><input id="l-name" placeholder="e.g. My Portfolio" style="width:180px"></div>
+      <div class="fg"><label>URL</label><input id="l-url" placeholder="https://" style="width:260px"></div>
+      <div class="fg"><label>Color</label><input type="color" id="l-color" value="#2563eb" style="width:52px;height:35px;padding:2px 4px;cursor:pointer"></div>
+      <button class="btn btn-p" onclick="app.addLink()">Add</button>
+    </div>
+  </div>
+  <div id="links-grid" class="links-grid" style="margin-bottom:24px"></div>
+  <div id="links-empty" class="empty" style="display:none;margin-bottom:24px">No links yet.</div>
+
+  <div class="card">
+    <div class="section-hd"><h2>Reference Contacts</h2></div>
+    <div class="row">
+      <div class="fg"><label>Name *</label><input id="c-name" placeholder="Jane Smith" style="width:155px"></div>
+      <div class="fg"><label>Title</label><input id="c-title" placeholder="Eng Manager" style="width:155px"></div>
+      <div class="fg"><label>Company</label><input id="c-company" placeholder="Acme Corp" style="width:155px"></div>
+      <div class="fg"><label>Email</label><input id="c-email" type="email" placeholder="jane@acme.com" style="width:185px"></div>
+      <div class="fg"><label>Phone</label><input id="c-phone" placeholder="+1 (555) 000-0100" style="width:145px"></div>
+      <button class="btn btn-p" onclick="app.addContact()">Add</button>
+    </div>
+  </div>
+  <div id="contacts-grid" class="contacts-grid"></div>
+  <div id="contacts-empty" class="empty" style="display:none">No contacts yet.</div>
+</div>
+
+<div id="pane-tracker" class="pane">
+  <div class="xl-toolbar">
+    <h2>Applications</h2>
+    <button class="btn btn-p" onclick="app.openModal()">+ New Application</button>
+    <label class="btn btn-s" style="cursor:pointer" title="Import CSV or Excel file">
+      Import
+      <input type="file" id="import-file" accept=".csv,.xlsx,.xls" style="display:none" onchange="app.importSpreadsheet(this)">
+    </label>
+    <button class="btn btn-s" onclick="app.exportCSV()">Export CSV</button>
+    <span id="row-count" style="font-size:.8rem;color:var(--muted)"></span>
+  </div>
+  <div id="status-pipeline" class="status-pipeline"></div>
+  <div class="xl-outer">
+    <div class="xl-scroll">
+      <table class="xl-table">
+        <thead>
+          <tr>
+            <th class="rn">#</th>
+            <th>Date</th><th>Company</th><th>Role / Title</th><th>Type</th>
+            <th>Status</th><th>Source</th><th>Location</th><th>Pay Range</th>
+            <th>Job URL</th><th style="min-width:180px">Notes</th>
+          </tr>
+        </thead>
+        <tbody id="xl-body"></tbody>
+      </table>
+      <div id="xl-empty" class="xl-empty" style="display:none">No applications yet — click <strong>+ New Application</strong> to add one.</div>
+    </div>
+  </div>
+</div>
+
+<div id="pane-calendar" class="pane">
+  <div class="card">
+    <div class="cal-header">
+      <button class="btn btn-s" onclick="app.calPrev()">&#8249;</button>
+      <span id="cal-month-label" style="font-weight:600;font-size:.95rem"></span>
+      <button class="btn btn-s" onclick="app.calNext()">&#8250;</button>
+    </div>
+    <div class="cal-legend">
+      <span class="cal-leg-dot" style="background:#4ade80"></span>Boards visited
+      <span class="cal-leg-dot" style="background:#93c5fd;margin-left:10px"></span>Apps sent
+    </div>
+    <div class="cal-grid" id="cal-grid"></div>
+  </div>
+</div>
+
+<div id="pane-docs" class="pane">
+  <div class="card">
+    <div class="section-hd"><h2>Documents</h2></div>
+    <input type="file" id="doc-file-input" style="position:absolute;left:-9999px;opacity:0" onchange="app.uploadDocument(this)">
+    <div class="doc-upload-area" id="doc-drop-zone" onclick="document.getElementById('doc-file-input').click()">
+      <div class="doc-upload-icon">📂</div>
+      <div class="doc-upload-txt">Drop a file here or <strong>click to upload</strong></div>
+      <div class="doc-upload-txt" style="font-size:.75rem;margin-top:4px">Resume, cover letters, references, portfolios…</div>
+    </div>
+    <div class="docs-list" id="docs-list"></div>
+    <div id="docs-empty" class="empty" style="display:none">No documents yet — upload one above.</div>
+  </div>
+</div>
+
+<div id="pane-notes" class="pane">
+  <div class="card">
+    <div id="weekly-summary"></div>
+    <p style="font-size:.79rem;color:var(--muted);margin-bottom:16px">Autosaves as you type.</p>
+    <div class="notes-grid">
+      <div class="note-wrap">
+        <h3>Cover Letter Snippets</h3>
+        <textarea id="n-cover_letter" placeholder="Reusable openers, closers, key paragraphs…"></textarea>
+        <div class="save-ind" id="si-cover_letter"></div>
+      </div>
+      <div class="note-wrap">
+        <h3>Job Search Notes</h3>
+        <textarea id="n-job_search_notes" placeholder="Target companies, strategies, contacts…"></textarea>
+        <div class="save-ind" id="si-job_search_notes"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="modal-ov" class="modal-ov" onclick="if(event.target===this)app.closeModal()">
+  <div class="modal">
+    <div class="modal-hd">
+      <h3 id="modal-title">New Application</h3>
+      <button class="modal-close" onclick="app.closeModal()">&#215;</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-grid">
+        <div class="fg"><label>Company *</label><input id="m-company" placeholder="e.g. Acme Corp"></div>
+        <div class="fg"><label>Role / Title *</label><input id="m-role" placeholder="e.g. Software Engineer"></div>
+        <div class="fg"><label>Date Applied *</label><input type="date" id="m-date"></div>
+        <div class="fg"><label>Type</label>
+          <select id="m-type">
+            <option>Full-time</option><option>Part-time</option>
+            <option>Contract</option><option>Internship</option><option>Freelance</option>
+          </select>
+        </div>
+        <div class="fg"><label>Status</label>
+          <select id="m-status">
+            <option>Applied</option><option>Under Review</option><option>Rejected</option>
+            <option>Offer Received</option><option>Withdrawn</option><option>Ghosted</option>
+          </select>
+        </div>
+        <div class="fg"><label>Source</label>
+          <select id="m-source">
+            <option value="">— Select —</option>
+            <option>Indeed</option><option>LinkedIn</option><option>Glassdoor</option>
+            <option>ZipRecruiter</option><option>Company Website</option><option>Referral</option>
+            <option>Recruiter / Headhunter</option><option>Wellfound</option>
+            <option>Remote.co</option><option>We Work Remotely</option>
+            <option>Y Combinator</option><option>Other</option>
+          </select>
+        </div>
+        <div class="fg"><label>Location</label><input id="m-location" placeholder="e.g. Remote / New York, NY"></div>
+        <div class="fg"><label>Pay Range</label><input id="m-pay" placeholder="e.g. $110k – $140k"></div>
+        <div class="fg span2"><label>Job URL</label><input id="m-url" placeholder="https://"></div>
+        <div class="fg span2"><label>Notes</label><textarea id="m-notes" rows="3" style="resize:vertical"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-d" id="modal-delete-btn" onclick="app.deleteCurrentApp()" style="display:none;margin-right:auto">Delete</button>
+      <button class="btn btn-s" onclick="app.closeModal()">Cancel</button>
+      <button class="btn btn-p" onclick="app.submitApp()" id="modal-save-btn">Save Application</button>
+    </div>
+  </div>
+</div>
+
+<div id="goal-modal-ov" class="modal-ov" onclick="if(event.target===this)app.closeGoalModal()">
+  <div class="modal" style="width:420px;max-width:95vw">
+    <div class="modal-hd">
+      <h3 id="goal-modal-title">Today's Goals</h3>
+      <button class="modal-close" onclick="app.closeGoalModal()">&#215;</button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:16px">
+      <div id="goal-modal-weekly-section" style="display:none;padding-bottom:16px;border-bottom:1px solid var(--border)">
+        <p style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:10px">This Week</p>
+        <div class="fg">
+          <label>Weekly Applications Goal</label>
+          <input type="number" id="goal-modal-week-input" min="1" placeholder="e.g. 50" onkeydown="if(event.key==='Enter')app.confirmGoal()">
+        </div>
+      </div>
+      <div>
+        <p style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:10px">Today</p>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div class="fg">
+            <label>Applications Goal</label>
+            <input type="number" id="goal-modal-input" min="1" placeholder="e.g. 10" onkeydown="if(event.key==='Enter')app.confirmGoal()">
+          </div>
+          <div class="fg">
+            <label>Boards to Visit</label>
+            <input type="number" id="goal-modal-boards-input" min="1" placeholder="e.g. 5" onkeydown="if(event.key==='Enter')app.confirmGoal()">
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-s" onclick="app.closeGoalModal()">Skip</button>
+      <button class="btn btn-p" onclick="app.confirmGoal()">Let's Go!</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const BOARDS = [
+  { name: 'Indeed',                url: 'https://www.indeed.com',                    cat: 'general' },
+  { name: 'LinkedIn Jobs',         url: 'https://www.linkedin.com/jobs',             cat: 'general' },
+  { name: 'Glassdoor',             url: 'https://www.glassdoor.com/Job/index.htm',   cat: 'general' },
+  { name: 'ZipRecruiter',          url: 'https://www.ziprecruiter.com',              cat: 'general' },
+  { name: 'Monster',               url: 'https://www.monster.com',                   cat: 'general' },
+  { name: 'CareerBuilder',         url: 'https://www.careerbuilder.com',             cat: 'general' },
+  { name: 'SimplyHired',           url: 'https://www.simplyhired.com',               cat: 'general' },
+  { name: 'Handshake',             url: 'https://joinhandshake.com/jobs',            cat: 'general' },
+  { name: 'Robert Half',           url: 'https://www.roberthalf.com/us/en/jobs',     cat: 'general' },
+  { name: 'Dice',                  url: 'https://www.dice.com',                      cat: 'tech'    },
+  { name: 'Wellfound',             url: 'https://wellfound.com/jobs',                cat: 'tech'    },
+  { name: 'Built In',              url: 'https://builtin.com/jobs',                  cat: 'tech'    },
+  { name: 'Hired',                 url: 'https://hired.com',                         cat: 'tech'    },
+  { name: 'Levels.fyi Jobs',       url: 'https://www.levels.fyi/jobs',               cat: 'tech'    },
+  { name: 'Welcome to the Jungle', url: 'https://app.welcometothejungle.com',        cat: 'tech'    },
+  { name: 'Remotive',              url: 'https://remotive.com',                      cat: 'remote'  },
+  { name: 'Remote.co',             url: 'https://remote.co/remote-jobs',             cat: 'remote'  },
+  { name: 'We Work Remotely',      url: 'https://weworkremotely.com',                cat: 'remote'  },
+  { name: 'FlexJobs',              url: 'https://www.flexjobs.com',                  cat: 'remote'  },
+  { name: 'JustRemote',            url: 'https://justremote.co',                     cat: 'remote'  },
+  { name: 'Virtual Vocations',     url: 'https://www.virtualvocations.com',          cat: 'remote'  },
+  { name: 'Y Combinator Jobs',     url: 'https://www.ycombinator.com/jobs',          cat: 'other'   },
+  { name: 'Startup.Jobs',          url: 'https://startup.jobs',                      cat: 'other'   },
+  { name: 'New Grad Jobs',         url: 'https://www.newgrad-jobs.com',              cat: 'other'   },
+];
+
+const CAT_BADGE = {
+  general: ['bg', 'General'],
+  tech:    ['bt', 'Tech'],
+  remote:  ['bs', 'Remote'],
+  other:   ['bu', 'Other'],
+};
+
+const STATUS_PILL = {
+  'Applied':        'xl-Applied',
+  'Under Review':   'xl-Under',
+  'Rejected':       'xl-Rejected',
+  'Offer Received': 'xl-Offer',
+  'Withdrawn':      'xl-Withdrawn',
+  'Ghosted':        'xl-Ghosted',
+};
+
+const CACHE_KEY = 'jsa_cache_v2';
+
+const COLUMN_ALIASES = {
+  company:   ['company', 'company name', 'employer', 'organization'],
+  role:      ['role', 'position', 'title', 'job title', 'job role', 'role/title'],
+  date:      ['date', 'date applied', 'applied', 'applied date', 'application date'],
+  type:      ['type', 'job type', 'employment type', 'work type', 'position type'],
+  status:    ['status', 'application status', 'app status'],
+  source:    ['source', 'where found', 'job board', 'found via', 'applied via'],
+  location:  ['location', 'city', 'office', 'work location', 'office location'],
+  pay_range: ['pay range', 'pay', 'salary', 'compensation', 'salary range', 'comp'],
+  job_url:   ['job url', 'url', 'link', 'job link', 'apply link', 'posting'],
+  app_notes: ['notes', 'comments', 'note', 'additional notes'],
+};
+
+
+class DateHelper {
+  /**
+   * Returns the most recent 6 AM PST boundary as a UTC Date.
+   * @returns {Date}
+   */
+  static dayStart() {
+    const now      = new Date();
+    const boundary = new Date(now);
+    boundary.setUTCHours(14, 0, 0, 0);
+    if (now < boundary) boundary.setUTCDate(boundary.getUTCDate() - 1);
+    return boundary;
+  }
+
+  /**
+   * Returns today's date as a YYYY-MM-DD string in PST.
+   * @returns {string}
+   */
+  static todayString() {
+    return new Date(Date.now() - 8 * 3600000).toISOString().slice(0, 10);
+  }
+
+  /**
+   * Returns this week's Monday as a YYYY-MM-DD string in PST.
+   * @returns {string}
+   */
+  static mondayString() {
+    const pst          = new Date(Date.now() - 8 * 3600000);
+    const daysFromMon  = (pst.getUTCDay() + 6) % 7;
+    const monday       = new Date(pst);
+    monday.setUTCDate(pst.getUTCDate() - daysFromMon);
+    return monday.toISOString().slice(0, 10);
+  }
+
+  /**
+   * Returns true if today is Monday in PST.
+   * @returns {boolean}
+   */
+  static isMonday() {
+    return new Date(Date.now() - 8 * 3600000).getUTCDay() === 1;
+  }
+
+  /**
+   * Returns the Monday n weeks ago as a YYYY-MM-DD string.
+   * @param {number} n - Number of weeks to go back.
+   * @returns {string}
+   */
+  static mondayNWeeksAgo(n) {
+    const d = new Date(DateHelper.mondayString() + 'T12:00:00Z');
+    d.setUTCDate(d.getUTCDate() - n * 7);
+    return d.toISOString().slice(0, 10);
+  }
+
+  /**
+   * Returns the Sunday of the week that starts on the given Monday.
+   * @param {string} mondayStr - Monday date string in YYYY-MM-DD format.
+   * @returns {string}
+   */
+  static sundayFromMonday(mondayStr) {
+    const d = new Date(mondayStr + 'T12:00:00Z');
+    d.setUTCDate(d.getUTCDate() + 6);
+    return d.toISOString().slice(0, 10);
+  }
+
+  /**
+   * Parses an ISO datetime string treating it as UTC.
+   * @param {string} s - ISO datetime string, with or without a trailing Z.
+   * @returns {Date}
+   */
+  static parseUTC(s) {
+    return new Date(s.endsWith('Z') ? s : s + 'Z');
+  }
+
+  /**
+   * Returns a human-readable relative time string for the given date.
+   * @param {Date} date - The date to describe.
+   * @returns {string}
+   */
+  static ago(date) {
+    const seconds = Math.floor((Date.now() - date) / 1000);
+    if (seconds < 60)    return 'just now';
+    if (seconds < 3600)  return `${Math.floor(seconds / 60)}m ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+    return `${Math.floor(seconds / 86400)}d ago`;
+  }
+}
+
+
+class GoalStore {
+  /**
+   * Returns today's daily applications goal from localStorage.
+   * @returns {number}
+   */
+  static dailyGoal() {
+    return parseInt(localStorage.getItem(`jsa_goal_${DateHelper.todayString()}`)) || 0;
+  }
+
+  /**
+   * Saves a daily applications goal. Rejects values below the current goal.
+   * @param {number} value - The goal to save.
+   * @returns {boolean} True if saved, false if value was below current goal.
+   */
+  static setDailyGoal(value) {
+    if (value < GoalStore.dailyGoal()) return false;
+    localStorage.setItem(`jsa_goal_${DateHelper.todayString()}`, value);
+    return true;
+  }
+
+  /**
+   * Returns the daily applications goal set for a specific date.
+   * @param {string} dateStr - Date in YYYY-MM-DD format.
+   * @returns {number}
+   */
+  static goalForDate(dateStr) {
+    return parseInt(localStorage.getItem(`jsa_goal_${dateStr}`)) || 0;
+  }
+
+  /**
+   * Returns today's daily boards-to-visit goal from localStorage.
+   * @returns {number}
+   */
+  static dailyBoardsGoal() {
+    return parseInt(localStorage.getItem(`jsa_boards_goal_${DateHelper.todayString()}`)) || 0;
+  }
+
+  /**
+   * Saves a daily boards-to-visit goal for today.
+   * @param {number} value - The goal to save.
+   */
+  static setDailyBoardsGoal(value) {
+    localStorage.setItem(`jsa_boards_goal_${DateHelper.todayString()}`, value);
+  }
+
+  /**
+   * Returns the boards goal set for a specific date.
+   * @param {string} dateStr - Date in YYYY-MM-DD format.
+   * @returns {number}
+   */
+  static boardsGoalForDate(dateStr) {
+    return parseInt(localStorage.getItem(`jsa_boards_goal_${dateStr}`)) || 0;
+  }
+
+  /**
+   * Returns this week's applications goal from localStorage.
+   * @returns {number}
+   */
+  static weeklyGoal() {
+    return parseInt(localStorage.getItem(`jsa_week_goal_${DateHelper.mondayString()}`)) || 0;
+  }
+
+  /**
+   * Saves a weekly applications goal for the current week.
+   * @param {number} value - The goal to save.
+   */
+  static setWeeklyGoal(value) {
+    localStorage.setItem(`jsa_week_goal_${DateHelper.mondayString()}`, value);
+  }
+
+  /**
+   * Returns the weekly goal set for the week starting on a given Monday.
+   * @param {string} mondayStr - Monday date in YYYY-MM-DD format.
+   * @returns {number}
+   */
+  static weeklyGoalForMonday(mondayStr) {
+    return parseInt(localStorage.getItem(`jsa_week_goal_${mondayStr}`)) || 0;
+  }
+}
+
+
+class Cache {
+  /**
+   * Creates a cache instance tied to a localStorage key.
+   * @param {string} key - The localStorage key to use.
+   */
+  constructor(key) {
+    this.key = key;
+  }
+
+  /**
+   * Serializes and saves the given state object to localStorage.
+   * @param {object} state - The state to persist.
+   */
+  save(state) {
+    try {
+      localStorage.setItem(this.key, JSON.stringify(state));
+    } catch (_) {}
+  }
+
+  /**
+   * Reads and deserializes state from localStorage.
+   * @returns {object|null} The cached state, or null if none exists.
+   */
+  load() {
+    try {
+      return JSON.parse(localStorage.getItem(this.key) || 'null');
+    } catch (_) {
+      return null;
+    }
+  }
+}
+
+
+class ApiClient {
+  /**
+   * Makes an HTTP request and returns the parsed JSON response.
+   * @param {string} path - The API path to call.
+   * @param {string} method - HTTP method, defaults to GET.
+   * @param {object|null} body - Request body to JSON-encode, or null.
+   * @returns {Promise<any>}
+   */
+  async request(path, method = 'GET', body = null) {
+    const options = { method, headers: { 'Content-Type': 'application/json' } };
+    if (body !== null) options.body = JSON.stringify(body);
+    const response = await fetch(path, options);
+    if (!response.ok) throw new Error(`${method} ${path} → ${response.status}`);
+    return response.json();
+  }
+}
+
+
+class App {
+  constructor() {
+    this.applications      = [];
+    this.links             = [];
+    this.contacts          = [];
+    this.visits            = [];
+    this.documents         = [];
+    this.notes             = { cover_letter: '', job_search_notes: '' };
+    this.activeCat         = 'all';
+    this.editingId         = null;
+    this.activeStatusFilter = null;
+    this.calYear           = new Date().getFullYear();
+    this.calMonth          = new Date().getMonth();
+    this._noteTimers       = {};
+    this._api              = new ApiClient();
+    this._cache            = new Cache(CACHE_KEY);
+  }
+
+  /**
+   * Bootstraps the app: sets the header date, loads cache, wires up
+   * all event listeners, fetches server data, and prompts for goals.
+   */
+  async init() {
+    document.getElementById('hd-date').textContent =
+      new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
+    this._setupTabs();
+    this._setupKeyboard();
+    this._setupCategoryFilters();
+    this._setupDocDropZone();
+    this._setupLinkEnterKey();
+    this.setupNoteAutosave();
+
+    const cached = this._cache.load();
+    if (cached) {
+      this.applications = cached.applications || [];
+      this.links        = cached.links        || [];
+      this.contacts     = cached.contacts     || [];
+      this.visits       = cached.visits       || [];
+      this.notes        = cached.notes        || { cover_letter: '', job_search_notes: '' };
+    }
+
+    this.renderAll();
+    await this.loadAll();
+    this.checkGoalPrompt();
+  }
+
+  /**
+   * Fetches all data from the server and refreshes the UI.
+   */
+  async loadAll() {
+    try {
+      [this.applications, this.links, this.contacts, this.visits, this.documents] =
+        await Promise.all([
+          this._api.request('/applications'),
+          this._api.request('/links'),
+          this._api.request('/contacts'),
+          this._api.request('/visits'),
+          this._api.request('/documents'),
+        ]);
+      const noteList = await this._api.request('/notes');
+      noteList.forEach(n => { this.notes[n.key] = n.value; });
+      this.saveState();
+    } catch (err) {
+      console.error('Failed to load data from server', err);
+    }
+    this.renderAll();
+  }
+
+  /**
+   * Calls every render method to refresh the full UI.
+   */
+  renderAll() {
+    this.renderStats();
+    this.renderBoards();
+    this.renderLinks();
+    this.renderContacts();
+    this.renderTracker();
+    this.renderDocs();
+    this.renderNotes();
+    this.renderStatusPipeline();
+    this.renderCalendar();
+    this.renderWeeklySummary();
+  }
+
+  /**
+   * Persists the current in-memory state to the localStorage cache.
+   */
+  saveState() {
+    this._cache.save({
+      applications: this.applications,
+      links:        this.links,
+      contacts:     this.contacts,
+      visits:       this.visits,
+      notes:        this.notes,
+    });
+  }
+
+
+  /**
+   * Applies a gradient color to a stat value element based on goal progress.
+   * @param {HTMLElement} el - The element to style.
+   * @param {boolean} passing - Whether the current value meets the goal.
+   * @param {boolean} hasGoal - Whether a goal is set at all.
+   */
+  applyStatGradient(el, passing, hasGoal) {
+    el.style.background = !hasGoal
+      ? 'var(--grad)'
+      : passing
+        ? 'linear-gradient(135deg, #16a34a 0%, #059669 100%)'
+        : 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)';
+    el.style.webkitBackgroundClip = 'text';
+    el.style.webkitTextFillColor  = 'transparent';
+    el.style.backgroundClip       = 'text';
+  }
+
+  /**
+   * Updates all four stat bar counters, gradients, and streak labels.
+   */
+  renderStats() {
+    const dayStart   = DateHelper.dayStart();
+    const todayStr   = DateHelper.todayString();
+    const mondayStr  = DateHelper.mondayString();
+
+    document.getElementById('s-total').textContent = this.applications.length;
+
+    const appsThisWeek = this.applications.filter(a => a.date >= mondayStr).length;
+    const weeklyGoal   = GoalStore.weeklyGoal();
+    const weekEl       = document.getElementById('s-week');
+    weekEl.textContent = appsThisWeek;
+    this.applyStatGradient(weekEl, appsThisWeek >= weeklyGoal, weeklyGoal > 0);
+
+    const boardsToday    = new Set(
+      this.visits
+        .filter(v => DateHelper.parseUTC(v.visited_at) >= dayStart)
+        .map(v => v.board)
+    ).size;
+    const boardsGoal     = GoalStore.dailyBoardsGoal();
+    const boardsEl       = document.getElementById('s-today');
+    boardsEl.textContent = boardsToday;
+
+    const allBoardsVisited = BOARDS.every(b => {
+      const ts = this.lastVisit(b.name);
+      return ts && ts >= dayStart;
+    });
+    if (allBoardsVisited) {
+      boardsEl.style.background            = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
+      boardsEl.style.webkitBackgroundClip  = 'text';
+      boardsEl.style.webkitTextFillColor   = 'transparent';
+      boardsEl.style.backgroundClip        = 'text';
+      boardsEl.style.animation             = 'goldpulse 1.2s ease-in-out infinite';
+    } else {
+      boardsEl.style.animation = '';
+      this.applyStatGradient(boardsEl, boardsToday >= boardsGoal, boardsGoal > 0);
+    }
+
+    const appliedToday    = this.applications.filter(a => a.date === todayStr).length;
+    const dailyGoal       = GoalStore.dailyGoal();
+    const appliedEl       = document.getElementById('s-applied-today');
+    appliedEl.textContent = appliedToday;
+    this.applyStatGradient(appliedEl, appliedToday >= dailyGoal, dailyGoal > 0);
+
+    this.setStreakLabel('s-week-streak',   this.calcWeekStreak(),   'wk');
+    this.setStreakLabel('s-boards-streak', this.calcBoardsStreak(), 'day');
+    this.setStreakLabel('s-apps-streak',   this.calcAppsStreak(),   'day');
+    this.renderGoalDisplay();
+  }
+
+  /**
+   * Shows or hides the goal fraction labels beneath each stat counter.
+   */
+  renderGoalDisplay() {
+    const daily   = GoalStore.dailyGoal();
+    const boards  = GoalStore.dailyBoardsGoal();
+    const weekly  = GoalStore.weeklyGoal();
+    document.getElementById('goal-display').textContent        = daily  > 0 ? `/ ${daily}`  : '';
+    document.getElementById('boards-goal-display').textContent = boards > 0 ? `/ ${boards}` : '';
+    document.getElementById('week-goal-display').textContent   = weekly > 0 ? `/ ${weekly}` : '';
+  }
+
+  /**
+   * Returns the number of unique boards visited on a given PST date.
+   * @param {string} dateStr - Date in YYYY-MM-DD format.
+   * @returns {number}
+   */
+  boardsOnDate(dateStr) {
+    return new Set(
+      this.visits
+        .filter(v => {
+          const pstDate = new Date(DateHelper.parseUTC(v.visited_at).getTime() - 8 * 3600000)
+            .toISOString().slice(0, 10);
+          return pstDate === dateStr;
+        })
+        .map(v => v.board)
+    ).size;
+  }
+
+  /**
+   * Calculates the current daily applications-goal streak in days.
+   * @returns {number}
+   */
+  calcAppsStreak() {
+    const today     = DateHelper.todayString();
+    const todayGoal = GoalStore.dailyGoal();
+    const metToday  = todayGoal > 0 && this.applications.filter(a => a.date === today).length >= todayGoal;
+    let streak      = metToday ? 1 : 0;
+
+    for (let i = 1; i <= 365; i++) {
+      const dateStr = new Date(Date.now() - 8 * 3600000 - i * 86400000).toISOString().slice(0, 10);
+      const goal    = GoalStore.goalForDate(dateStr);
+      if (goal === 0) break;
+      if (this.applications.filter(a => a.date === dateStr).length >= goal) streak++;
+      else break;
+    }
+    return streak;
+  }
+
+  /**
+   * Calculates the current daily boards-goal streak in days.
+   * @returns {number}
+   */
+  calcBoardsStreak() {
+    const today     = DateHelper.todayString();
+    const todayGoal = GoalStore.dailyBoardsGoal();
+    let streak      = (todayGoal > 0 && this.boardsOnDate(today) >= todayGoal) ? 1 : 0;
+
+    for (let i = 1; i <= 365; i++) {
+      const dateStr = new Date(Date.now() - 8 * 3600000 - i * 86400000).toISOString().slice(0, 10);
+      const goal    = GoalStore.boardsGoalForDate(dateStr);
+      if (goal === 0) break;
+      if (this.boardsOnDate(dateStr) >= goal) streak++;
+      else break;
+    }
+    return streak;
+  }
+
+  /**
+   * Calculates the current weekly applications-goal streak in weeks.
+   * @returns {number}
+   */
+  calcWeekStreak() {
+    const thisMonday  = DateHelper.mondayString();
+    const weeklyGoal  = GoalStore.weeklyGoal();
+    const thisWeekLen = this.applications.filter(a => a.date >= thisMonday).length;
+    let streak        = (weeklyGoal > 0 && thisWeekLen >= weeklyGoal) ? 1 : 0;
+
+    for (let w = 1; w <= 52; w++) {
+      const mondayStr = DateHelper.mondayNWeeksAgo(w);
+      const sundayStr = DateHelper.sundayFromMonday(mondayStr);
+      const goal      = GoalStore.weeklyGoalForMonday(mondayStr);
+      if (goal === 0) break;
+      if (this.applications.filter(a => a.date >= mondayStr && a.date <= sundayStr).length >= goal) streak++;
+      else break;
+    }
+    return streak;
+  }
+
+  /**
+   * Updates a streak label element with the given streak count and unit.
+   * @param {string} id - The element ID to update.
+   * @param {number} streak - The streak count.
+   * @param {string} unit - The unit label, e.g. "day" or "wk".
+   */
+  setStreakLabel(id, streak, unit) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (streak > 0) {
+      el.textContent = `${streak} ${unit} streak`;
+      el.classList.add('active');
+    } else {
+      el.textContent = '';
+      el.classList.remove('active');
+    }
+  }
+
+
+  /**
+   * Opens the goal modal if daily or weekly goals have not yet been set.
+   */
+  checkGoalPrompt() {
+    const needsDaily  = GoalStore.dailyGoal() === 0 || GoalStore.dailyBoardsGoal() === 0;
+    const needsWeekly = DateHelper.isMonday() && GoalStore.weeklyGoal() === 0;
+    if (!needsDaily && !needsWeekly) return;
+
+    const weekSection = document.getElementById('goal-modal-weekly-section');
+    weekSection.style.display = needsWeekly ? '' : 'none';
+    document.getElementById('goal-modal-title').textContent =
+      needsWeekly ? "Weekly + Today's Goals" : "Today's Goals";
+    document.getElementById('goal-modal-ov').classList.add('open');
+
+    setTimeout(() => {
+      const focusTarget = needsWeekly
+        ? document.getElementById('goal-modal-week-input')
+        : document.getElementById('goal-modal-input');
+      focusTarget.focus();
+    }, 50);
+  }
+
+  /**
+   * Closes the goal-setting modal.
+   */
+  closeGoalModal() {
+    document.getElementById('goal-modal-ov').classList.remove('open');
+  }
+
+  /**
+   * Reads goal inputs from the modal, validates them, saves them, and closes the modal.
+   */
+  confirmGoal() {
+    const appsVal    = parseInt(document.getElementById('goal-modal-input').value);
+    const boardsVal  = parseInt(document.getElementById('goal-modal-boards-input').value);
+    const weekSection = document.getElementById('goal-modal-weekly-section');
+    const showWeekly  = weekSection.style.display !== 'none';
+    const weeklyVal   = showWeekly ? parseInt(document.getElementById('goal-modal-week-input').value) : null;
+
+    if (!appsVal   || appsVal < 1)                         { toast('Enter a daily applications goal'); return; }
+    if (!boardsVal || boardsVal < 1)                        { toast('Enter a daily boards goal');       return; }
+    if (weeklyVal !== null && (!weeklyVal || weeklyVal < 1)) { toast('Enter a weekly goal');             return; }
+
+    GoalStore.setDailyGoal(appsVal);
+    GoalStore.setDailyBoardsGoal(boardsVal);
+    if (weeklyVal !== null) GoalStore.setWeeklyGoal(weeklyVal);
+
+    this.closeGoalModal();
+    this.renderStats();
+    toast('Goals set!');
+  }
+
+
+  /**
+   * Returns the most recent visit Date for the named board, or null if never visited.
+   * @param {string} boardName - The board name to look up.
+   * @returns {Date|null}
+   */
+  lastVisit(boardName) {
+    const timestamps = this.visits
+      .filter(v => v.board === boardName)
+      .map(v => DateHelper.parseUTC(v.visited_at))
+      .sort((a, b) => b - a);
+    return timestamps[0] || null;
+  }
+
+  /**
+   * Renders the job boards grid filtered by the active category.
+   */
+  renderBoards() {
+    const grid = document.getElementById('boards-grid');
+    if (!grid) return;
+
+    const list = this.activeCat === 'all'
+      ? BOARDS
+      : BOARDS.filter(b => b.cat === this.activeCat);
+
+    grid.innerHTML = list.map(board => {
+      const lastTs  = this.lastVisit(board.name);
+      const visited = lastTs && lastTs >= DateHelper.dayStart();
+      const [badgeCls, badgeText] = CAT_BADGE[board.cat];
+      return `<div class="board-card">
+        <div class="vdot ${visited ? 'on' : ''}" title="${visited ? 'Visited today' : 'Not visited today'}"></div>
+        <div class="binfo">
+          <div class="bname">${esc(board.name)}</div>
+          <div class="bmeta">
+            <span class="badge ${badgeCls}">${badgeText}</span>
+            ${lastTs ? `<span class="bts">${DateHelper.ago(lastTs)}</span>` : ''}
+          </div>
+        </div>
+        <a href="${board.url}" target="_blank" rel="noopener"
+           class="btn btn-s btn-sm visit-btn" style="text-decoration:none"
+           data-board="${esc(board.name)}" onclick="app.recordVisit(this)">Visit</a>
+      </div>`;
+    }).join('');
+  }
+
+  /**
+   * Records a board visit optimistically in the UI, then persists it to the server.
+   * @param {HTMLElement} el - The Visit button element that was clicked.
+   */
+  async recordVisit(el) {
+    const boardName = el.dataset.board;
+    el.closest('.board-card')?.querySelector('.vdot')?.classList.add('on');
+    try {
+      const visit = await this._api.request('/visits', 'POST', { board: boardName });
+      this.visits.unshift(visit);
+      this.renderStats();
+      this.saveState();
+      this.renderCalendar();
+      this.renderWeeklySummary();
+    } catch (_) {}
+  }
+
+
+  /**
+   * Renders the quick links grid, showing an empty state if there are none.
+   */
+  renderLinks() {
+    const grid  = document.getElementById('links-grid');
+    const empty = document.getElementById('links-empty');
+    if (!this.links.length) {
+      grid.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+    grid.innerHTML = this.links.map(link => `
+      <div class="link-card">
+        <div class="ldot" style="background:${esc(link.color)}"></div>
+        <span class="lname" title="${esc(link.url)}">${esc(link.name)}</span>
+        <div class="lactions">
+          <button class="btn btn-s btn-sm" data-copy="${esc(link.url)}"
+            onclick="copyText(this.dataset.copy, 'URL copied')">Copy</button>
+          <a href="${esc(link.url)}" target="_blank" rel="noopener"
+            class="btn btn-s btn-sm" style="text-decoration:none">Open</a>
+          <button class="btn btn-d btn-sm" onclick="app.deleteLink(${link.id})">✕</button>
+        </div>
+      </div>`).join('');
+  }
+
+  /**
+   * Reads the link form fields and creates a new quick link via the API.
+   */
+  async addLink() {
+    const name  = document.getElementById('l-name').value.trim();
+    const url   = document.getElementById('l-url').value.trim();
+    const color = document.getElementById('l-color').value;
+    if (!name || !url) { toast('Enter a label and URL'); return; }
+
+    const link = await this._api.request('/links', 'POST', { name, url, color });
+    this.links.unshift(link);
+    this.renderLinks();
+    this.saveState();
+
+    document.getElementById('l-name').value = '';
+    document.getElementById('l-url').value  = '';
+    toast('Link added');
+  }
+
+  /**
+   * Deletes a quick link by ID and refreshes the list.
+   * @param {number} id - The link ID to delete.
+   */
+  async deleteLink(id) {
+    await this._api.request(`/links/${id}`, 'DELETE');
+    this.links = this.links.filter(l => l.id !== id);
+    this.renderLinks();
+    this.saveState();
+  }
+
+
+  /**
+   * Renders the contacts grid, showing an empty state if there are none.
+   */
+  renderContacts() {
+    const grid  = document.getElementById('contacts-grid');
+    const empty = document.getElementById('contacts-empty');
+    if (!this.contacts.length) {
+      grid.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+    grid.innerHTML = this.contacts.map(contact => {
+      const fields = [
+        contact.email
+          ? `<div class="cfield">
+               <span class="cfield-lbl">Email</span>
+               <span class="cfield-val">${esc(contact.email)}</span>
+               <button class="copy-btn" data-copy="${esc(contact.email)}"
+                 onclick="copyText(this.dataset.copy, 'Email copied')">Copy</button>
+             </div>`
+          : '',
+        contact.phone
+          ? `<div class="cfield">
+               <span class="cfield-lbl">Phone</span>
+               <span class="cfield-val">${esc(contact.phone)}</span>
+               <button class="copy-btn" data-copy="${esc(contact.phone)}"
+                 onclick="copyText(this.dataset.copy, 'Phone copied')">Copy</button>
+             </div>`
+          : '',
+      ].filter(Boolean).join('');
+
+      return `<div class="contact-card">
+        <div class="contact-top">
+          <div>
+            <div class="contact-name">${esc(contact.name)}</div>
+            <div class="contact-sub">
+              ${[contact.title, contact.company].filter(Boolean).map(esc).join(' · ')}
+            </div>
+          </div>
+          <button class="btn btn-d btn-sm" onclick="app.deleteContact(${contact.id})">✕</button>
+        </div>
+        <div class="contact-fields">${fields}</div>
+      </div>`;
+    }).join('');
+  }
+
+  /**
+   * Reads the contact form fields and creates a new contact via the API.
+   */
+  async addContact() {
+    const name = document.getElementById('c-name').value.trim();
+    if (!name) { toast('Name is required'); return; }
+
+    const contact = await this._api.request('/contacts', 'POST', {
+      name,
+      title:   document.getElementById('c-title').value.trim()   || null,
+      company: document.getElementById('c-company').value.trim() || null,
+      email:   document.getElementById('c-email').value.trim()   || null,
+      phone:   document.getElementById('c-phone').value.trim()   || null,
+    });
+    this.contacts.unshift(contact);
+    this.renderContacts();
+    this.saveState();
+    ['c-name', 'c-title', 'c-company', 'c-email', 'c-phone'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+    toast('Contact added');
+  }
+
+  /**
+   * Deletes a contact by ID and refreshes the list.
+   * @param {number} id - The contact ID to delete.
+   */
+  async deleteContact(id) {
+    await this._api.request(`/contacts/${id}`, 'DELETE');
+    this.contacts = this.contacts.filter(c => c.id !== id);
+    this.renderContacts();
+    this.saveState();
+  }
+
+
+  /**
+   * Renders the applications spreadsheet table, applying any active status filter.
+   */
+  renderTracker() {
+    const tbody    = document.getElementById('xl-body');
+    const empty    = document.getElementById('xl-empty');
+    const filtered = this.activeStatusFilter
+      ? this.applications.filter(a => a.status === this.activeStatusFilter)
+      : this.applications;
+
+    const count = this.applications.length;
+    document.getElementById('row-count').textContent = count
+      ? `${filtered.length}${this.activeStatusFilter ? ' filtered' : ''} / ${count} row${count !== 1 ? 's' : ''}`
+      : '';
+
+    if (!filtered.length) {
+      tbody.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+    tbody.innerHTML = filtered.map((app, index) => {
+      const pillClass = STATUS_PILL[app.status] || 'xl-Applied';
+      const notes     = app.app_notes || '';
+      return `<tr onclick="app.editApp(${app.id})">
+        <td class="rn">${index + 1}</td>
+        <td>${esc(app.date)}</td>
+        <td><strong>${esc(app.company)}</strong></td>
+        <td>${esc(app.role)}</td>
+        <td style="color:var(--muted)">${esc(app.type)}</td>
+        <td><span class="xl-pill ${pillClass}">${esc(app.status)}</span></td>
+        <td>${esc(app.source || '')}</td>
+        <td>${esc(app.location || '')}</td>
+        <td>${esc(app.pay_range || '')}</td>
+        <td>${app.job_url
+          ? `<a href="${esc(app.job_url)}" target="_blank" class="xl-link" onclick="event.stopPropagation()">Link ↗</a>`
+          : '<span style="color:#ccc">—</span>'
+        }</td>
+        <td style="color:var(--muted);font-size:.8rem" title="${esc(notes)}">
+          ${esc(notes.slice(0, 60))}${notes.length > 60 ? '…' : ''}
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  /**
+   * Renders the clickable status-filter pills above the applications table.
+   */
+  renderStatusPipeline() {
+    const el = document.getElementById('status-pipeline');
+    if (!el) return;
+    if (!this.applications.length) { el.innerHTML = ''; return; }
+
+    const order  = ['Applied', 'Under Review', 'Rejected', 'Offer Received', 'Withdrawn', 'Ghosted'];
+    const counts = {};
+    this.applications.forEach(a => { counts[a.status] = (counts[a.status] || 0) + 1; });
+
+    el.innerHTML = order
+      .filter(s => counts[s])
+      .map(s => {
+        const pillClass  = STATUS_PILL[s] || 'xl-Applied';
+        const activeClass = this.activeStatusFilter === s ? ' active' : '';
+        return `<span class="xl-pill sp-pill ${pillClass}${activeClass}"
+          onclick="app.toggleStatusFilter('${esc(s)}')">${esc(s)}<span class="sp-count">${counts[s]}</span></span>`;
+      }).join('');
+  }
+
+  /**
+   * Toggles the active status filter and re-renders the table and pipeline.
+   * @param {string} status - The status string to toggle.
+   */
+  toggleStatusFilter(status) {
+    this.activeStatusFilter = this.activeStatusFilter === status ? null : status;
+    this.renderStatusPipeline();
+    this.renderTracker();
+  }
+
+  /**
+   * Opens the application modal, optionally pre-filled with an existing application.
+   * @param {number|null} id - The application ID to edit, or null for a new application.
+   */
+  openModal(id = null) {
+    this.editingId = id;
+    document.getElementById('modal-title').textContent    = id ? 'Edit Application' : 'New Application';
+    document.getElementById('modal-save-btn').textContent = id ? 'Save Changes'    : 'Save Application';
+
+    if (id) {
+      const application = this.applications.find(a => a.id === id);
+      if (!application) return;
+      document.getElementById('m-company').value  = application.company;
+      document.getElementById('m-role').value     = application.role;
+      document.getElementById('m-date').value     = application.date;
+      document.getElementById('m-type').value     = application.type;
+      document.getElementById('m-status').value   = application.status;
+      document.getElementById('m-source').value   = application.source   || '';
+      document.getElementById('m-location').value = application.location || '';
+      document.getElementById('m-pay').value      = application.pay_range || '';
+      document.getElementById('m-url').value      = application.job_url  || '';
+      document.getElementById('m-notes').value    = application.app_notes || '';
+    } else {
+      ['m-company', 'm-role', 'm-source', 'm-location', 'm-pay', 'm-url', 'm-notes']
+        .forEach(id => { document.getElementById(id).value = ''; });
+      document.getElementById('m-date').valueAsDate = new Date();
+      document.getElementById('m-type').value   = 'Full-time';
+      document.getElementById('m-status').value = 'Applied';
+    }
+
+    document.getElementById('modal-delete-btn').style.display = id ? '' : 'none';
+    document.getElementById('modal-ov').classList.add('open');
+    document.getElementById('m-company').focus();
+  }
+
+  /**
+   * Closes the application modal and clears the editing state.
+   */
+  closeModal() {
+    document.getElementById('modal-ov').classList.remove('open');
+    this.editingId = null;
+  }
+
+  /**
+   * Reads the application modal form, validates it, and saves to the server.
+   */
+  async submitApp() {
+    const company = document.getElementById('m-company').value.trim();
+    const role    = document.getElementById('m-role').value.trim();
+    const date    = document.getElementById('m-date').value;
+    if (!company || !role || !date) { toast('Company, role, and date are required'); return; }
+
+    const payload = {
+      company, role, date,
+      type:      document.getElementById('m-type').value,
+      status:    document.getElementById('m-status').value,
+      source:    document.getElementById('m-source').value   || null,
+      location:  document.getElementById('m-location').value.trim() || null,
+      pay_range: document.getElementById('m-pay').value.trim()      || null,
+      job_url:   document.getElementById('m-url').value.trim()      || null,
+      app_notes: document.getElementById('m-notes').value.trim()    || null,
+    };
+
+    try {
+      if (this.editingId) {
+        const updated = await this._api.request(`/applications/${this.editingId}`, 'PATCH', payload);
+        const index   = this.applications.findIndex(a => a.id === this.editingId);
+        if (index !== -1) this.applications[index] = updated;
+        toast('Application updated');
+      } else {
+        this.applications.unshift(await this._api.request('/applications', 'POST', payload));
+        toast('Application saved');
+      }
+      this.closeModal();
+      this.renderTracker();
+      this.renderStats();
+      this.saveState();
+      this.renderStatusPipeline();
+      this.renderWeeklySummary();
+    } catch (_) {
+      toast('Error saving application');
+    }
+  }
+
+  /**
+   * Prompts the user, then deletes the application currently open in the modal.
+   */
+  async deleteCurrentApp() {
+    if (!this.editingId) return;
+    if (!confirm('Delete this application?')) return;
+    await this._api.request(`/applications/${this.editingId}`, 'DELETE');
+    this.applications = this.applications.filter(a => a.id !== this.editingId);
+    this.closeModal();
+    this.renderTracker();
+    this.renderStats();
+    this.saveState();
+    this.renderStatusPipeline();
+    this.renderWeeklySummary();
+  }
+
+  /**
+   * Prompts the user, then deletes an application by ID.
+   * @param {number} id - The application ID to delete.
+   */
+  async deleteApp(id) {
+    if (!confirm('Delete this application?')) return;
+    await this._api.request(`/applications/${id}`, 'DELETE');
+    this.applications = this.applications.filter(a => a.id !== id);
+    this.renderTracker();
+    this.renderStats();
+    this.saveState();
+  }
+
+  /**
+   * Opens the application modal pre-filled with the specified application.
+   * @param {number} id - The application ID to edit.
+   */
+  editApp(id) {
+    this.openModal(id);
+  }
+
+  /**
+   * Downloads all applications as a CSV file named with today's date.
+   */
+  exportCSV() {
+    const columns = ['Date', 'Company', 'Role', 'Type', 'Status', 'Source', 'Location', 'Pay Range', 'Job URL', 'Notes'];
+    const rows    = this.applications.map(a => [
+      a.date, a.company, a.role, a.type, a.status,
+      a.source || '', a.location || '', a.pay_range || '', a.job_url || '',
+      (a.app_notes || '').replace(/\n/g, ' '),
+    ]);
+    const csv  = [columns, ...rows]
+      .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\r\n');
+    const link = Object.assign(document.createElement('a'), {
+      href:     URL.createObjectURL(new Blob([csv], { type: 'text/csv' })),
+      download: `applications_${new Date().toISOString().slice(0, 10)}.csv`,
+    });
+    link.click();
+    URL.revokeObjectURL(link.href);
+    toast('CSV downloaded');
+  }
+
+  /**
+   * Parses a CSV or Excel file from a file input and imports the rows.
+   * @param {HTMLInputElement} input - The file input element.
+   */
+  async importSpreadsheet(input) {
+    const file = input.files[0];
+    if (!file) return;
+    try {
+      const buffer    = await file.arrayBuffer();
+      const workbook  = XLSX.read(buffer, { type: 'array', cellDates: true });
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows      = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+      if (!rows.length) { toast('No data found in file'); input.value = ''; return; }
+
+      const headers  = Object.keys(rows[0]);
+      const fieldMap = {};
+      for (const [field, aliases] of Object.entries(COLUMN_ALIASES)) {
+        const match = headers.find(h => aliases.includes(h.toLowerCase().trim()));
+        if (match) fieldMap[field] = match;
+      }
+
+      let imported = 0, skipped = 0;
+      for (const row of rows) {
+        const company = String(row[fieldMap.company] || '').trim();
+        const role    = String(row[fieldMap.role]    || '').trim();
+        if (!company || !role) { skipped++; continue; }
+
+        let date = '';
+        if (fieldMap.date) {
+          const raw = row[fieldMap.date];
+          if (raw instanceof Date)        date = raw.toISOString().slice(0, 10);
+          else if (typeof raw === 'number') {
+            const parsed = XLSX.SSF.parse_date_code(raw);
+            date = `${parsed.y}-${String(parsed.m).padStart(2, '0')}-${String(parsed.d).padStart(2, '0')}`;
+          } else                           date = String(raw).trim().slice(0, 10);
+        }
+        if (!date) date = new Date().toISOString().slice(0, 10);
+
+        const get = field => fieldMap[field] ? String(row[fieldMap[field]] || '').trim() || null : null;
+        try {
+          this.applications.unshift(await this._api.request('/applications', 'POST', {
+            company, role, date,
+            type:      get('type')   || 'Full-time',
+            status:    get('status') || 'Applied',
+            source:    get('source'),
+            location:  get('location'),
+            pay_range: get('pay_range'),
+            job_url:   get('job_url'),
+            app_notes: get('app_notes'),
+          }));
+          imported++;
+        } catch (_) {
+          skipped++;
+        }
+      }
+      this.renderTracker();
+      this.renderStats();
+      this.saveState();
+      toast(`Imported ${imported} row${imported !== 1 ? 's' : ''}${skipped ? ` (${skipped} skipped)` : ''}`);
+    } catch (_) {
+      toast('Failed to read file');
+    }
+    input.value = '';
+  }
+
+
+  /**
+   * Navigates the calendar back one month and re-renders it.
+   */
+  calPrev() {
+    this.calMonth--;
+    if (this.calMonth < 0) { this.calMonth = 11; this.calYear--; }
+    this.renderCalendar();
+  }
+
+  /**
+   * Navigates the calendar forward one month and re-renders it.
+   */
+  calNext() {
+    this.calMonth++;
+    if (this.calMonth > 11) { this.calMonth = 0; this.calYear++; }
+    this.renderCalendar();
+  }
+
+  /**
+   * Renders the monthly calendar grid with board-visit and application activity chips.
+   */
+  renderCalendar() {
+    const grid    = document.getElementById('cal-grid');
+    if (!grid) return;
+
+    const label    = document.getElementById('cal-month-label');
+    const todayStr = DateHelper.todayString();
+    const monthStr = `${this.calYear}-${String(this.calMonth + 1).padStart(2, '0')}`;
+
+    if (label) {
+      label.textContent = new Date(this.calYear, this.calMonth, 1)
+        .toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    }
+
+    const firstDayOfWeek = new Date(this.calYear, this.calMonth, 1).getDay();
+    const daysInMonth    = new Date(this.calYear, this.calMonth + 1, 0).getDate();
+    const startOffset    = (firstDayOfWeek + 6) % 7;
+    const dayNames       = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+    let html = dayNames.map(d => `<div class="cal-dow">${d}</div>`).join('');
+    for (let i = 0; i < startOffset; i++) html += `<div class="cal-day empty"></div>`;
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr    = `${monthStr}-${String(day).padStart(2, '0')}`;
+      const isToday    = dateStr === todayStr;
+      const boardCount = new Set(
+        this.visits
+          .filter(v => {
+            const pstDate = new Date(DateHelper.parseUTC(v.visited_at).getTime() - 8 * 3600000)
+              .toISOString().slice(0, 10);
+            return pstDate === dateStr;
+          })
+          .map(v => v.board)
+      ).size;
+      const appCount = this.applications.filter(a => a.date === dateStr).length;
+
+      html += `<div class="cal-day${isToday ? ' today' : ''}">
+        <div class="cal-num${isToday ? ' today' : ''}">${day}</div>
+        <div class="cal-chips">
+          ${boardCount ? `<div class="cal-chip boards">${boardCount} board${boardCount !== 1 ? 's' : ''}</div>` : ''}
+          ${appCount   ? `<div class="cal-chip apps">${appCount} app${appCount !== 1 ? 's' : ''}</div>`         : ''}
+        </div>
+      </div>`;
+    }
+    grid.innerHTML = html;
+  }
+
+
+  /**
+   * Renders the weekly summary card showing apps sent, boards visited, and a day-dot strip.
+   */
+  renderWeeklySummary() {
+    const el = document.getElementById('weekly-summary');
+    if (!el) return;
+
+    const monday   = DateHelper.mondayString();
+    const todayStr = DateHelper.todayString();
+    const appsThisWeek = this.applications.filter(a => a.date >= monday && a.date <= todayStr);
+
+    const pstMonday = new Date(monday + 'T00:00:00');
+    const dayNames  = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const days      = Array.from({ length: 7 }, (_, i) => {
+      const d       = new Date(pstMonday.getTime() + i * 86400000);
+      const dateStr = d.toISOString().slice(0, 10);
+      const boards  = new Set(
+        this.visits
+          .filter(v => {
+            const pstDate = new Date(DateHelper.parseUTC(v.visited_at).getTime() - 8 * 3600000)
+              .toISOString().slice(0, 10);
+            return pstDate === dateStr;
+          })
+          .map(v => v.board)
+      ).size;
+      const apps = this.applications.filter(a => a.date === dateStr).length;
+      return { name: dayNames[i], dateStr, boards, apps, future: dateStr > todayStr };
+    });
+
+    const statusCounts = {};
+    appsThisWeek.forEach(a => { statusCounts[a.status] = (statusCounts[a.status] || 0) + 1; });
+    const statusBadges = Object.entries(statusCounts)
+      .map(([s, n]) =>
+        `<span class="xl-pill ${STATUS_PILL[s] || 'xl-Applied'}" style="font-size:.68rem;padding:1px 7px">${esc(s)} ${n}</span>`)
+      .join(' ');
+
+    const boardsThisWeek = new Set(
+      this.visits
+        .filter(v => {
+          const pstDate = new Date(DateHelper.parseUTC(v.visited_at).getTime() - 8 * 3600000)
+            .toISOString().slice(0, 10);
+          return pstDate >= monday && pstDate <= todayStr;
+        })
+        .map(v => v.board)
+    ).size;
+
+    el.innerHTML = `<div class="weekly-summary">
+      <div class="ws-title">This Week</div>
+      <div class="ws-row">
+        <div class="ws-stat"><span class="ws-val">${appsThisWeek.length}</span><span class="ws-lbl">Apps sent</span></div>
+        <div class="ws-stat"><span class="ws-val">${boardsThisWeek}</span><span class="ws-lbl">Boards visited</span></div>
+      </div>
+      <div class="ws-days">${days.map(d =>
+        `<div class="ws-day">
+          <div class="ws-day-dot${d.boards > 0 && !d.future ? ' hit' : ''}"
+            title="${d.boards} boards, ${d.apps} apps">${d.apps || ''}</div>
+          <span>${d.name}</span>
+        </div>`).join('')}
+      </div>
+      ${statusBadges ? `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px">${statusBadges}</div>` : ''}
+    </div>`;
+  }
+
+
+  /**
+   * Renders the documents list, showing an empty state if there are none.
+   */
+  renderDocs() {
+    const list  = document.getElementById('docs-list');
+    const empty = document.getElementById('docs-empty');
+    if (!this.documents.length) {
+      list.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+    list.innerHTML = this.documents.map(doc => `
+      <div class="doc-item">
+        <div class="doc-icon">${App.docIcon(doc.original_name)}</div>
+        <div class="doc-info">
+          <div class="doc-name">${esc(doc.original_name)}</div>
+          <div class="doc-meta">
+            ${App.formatBytes(doc.file_size)}${doc.file_size ? ' · ' : ''}${new Date(DateHelper.parseUTC(doc.created_at)).toLocaleDateString()}
+          </div>
+        </div>
+        <div class="doc-actions">
+          <a href="/documents/${doc.id}/download" class="btn btn-s btn-sm" style="text-decoration:none">Download</a>
+          <button class="btn btn-d btn-sm" onclick="app.deleteDoc(${doc.id})">✕</button>
+        </div>
+      </div>`).join('');
+  }
+
+  /**
+   * Handles a file input change event and forwards the file to the uploader.
+   * @param {HTMLInputElement} input - The file input element.
+   */
+  async uploadDocument(input) {
+    const file = input.files[0];
+    if (!file) return;
+    await this.uploadFile(file);
+    input.value = '';
+  }
+
+  /**
+   * Uploads a single file to the server and prepends it to the documents list.
+   * @param {File} file - The file to upload.
+   */
+  async uploadFile(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const response = await fetch('/documents', { method: 'POST', body: formData });
+      if (!response.ok) throw new Error();
+      const doc = await response.json();
+      this.documents.unshift(doc);
+      this.renderDocs();
+      toast(`Uploaded: ${doc.original_name}`);
+    } catch (_) {
+      toast('Upload failed');
+    }
+  }
+
+  /**
+   * Prompts the user, then deletes a document by ID and removes it from the list.
+   * @param {number} id - The document ID to delete.
+   */
+  async deleteDoc(id) {
+    if (!confirm('Delete this document?')) return;
+    await this._api.request(`/documents/${id}`, 'DELETE');
+    this.documents = this.documents.filter(d => d.id !== id);
+    this.renderDocs();
+  }
+
+
+  /**
+   * Populates the note textareas with values from the current notes state.
+   */
+  renderNotes() {
+    ['cover_letter', 'job_search_notes'].forEach(key => {
+      const el = document.getElementById(`n-${key}`);
+      if (el) el.value = this.notes[key] || '';
+    });
+  }
+
+  /**
+   * Attaches debounced autosave listeners to each note textarea.
+   */
+  setupNoteAutosave() {
+    ['cover_letter', 'job_search_notes'].forEach(key => {
+      const textarea   = document.getElementById(`n-${key}`);
+      const indicator  = document.getElementById(`si-${key}`);
+      if (!textarea) return;
+      textarea.addEventListener('input', () => {
+        clearTimeout(this._noteTimers[key]);
+        indicator.textContent = '';
+        this._noteTimers[key] = setTimeout(async () => {
+          try {
+            await this._api.request('/notes', 'POST', { key, value: textarea.value });
+            this.notes[key] = textarea.value;
+            this.saveState();
+            indicator.textContent = 'Saved';
+            setTimeout(() => { indicator.textContent = ''; }, 1500);
+          } catch (_) {
+            indicator.textContent = 'Error';
+          }
+        }, 800);
+      });
+    });
+  }
+
+
+  /**
+   * Returns an emoji icon for a document based on its file extension.
+   * @param {string} filename - The original filename.
+   * @returns {string}
+   */
+  static docIcon(filename) {
+    const ext = (filename || '').split('.').pop().toLowerCase();
+    if (['pdf'].includes(ext))                    return '📄';
+    if (['doc', 'docx'].includes(ext))            return '📝';
+    if (['xls', 'xlsx', 'csv'].includes(ext))     return '📊';
+    if (['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext)) return '🖼️';
+    if (['zip', 'rar', '7z'].includes(ext))       return '🗜️';
+    return '📁';
+  }
+
+  /**
+   * Formats a byte count into a human-readable string.
+   * @param {number} bytes - The file size in bytes.
+   * @returns {string}
+   */
+  static formatBytes(bytes) {
+    if (!bytes)          return '';
+    if (bytes < 1024)    return `${bytes} B`;
+    if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / 1048576).toFixed(1)} MB`;
+  }
+
+
+  /**
+   * Wires up tab navigation click listeners.
+   */
+  _setupTabs() {
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(`pane-${btn.dataset.tab}`).classList.add('active');
+        if (btn.dataset.tab === 'calendar') this.renderCalendar();
+      });
+    });
+  }
+
+  /**
+   * Wires up global keyboard shortcuts (Escape to close modals, Cmd+Enter to save).
+   */
+  _setupKeyboard() {
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') {
+        this.closeModal();
+        this.closeGoalModal();
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        if (document.getElementById('modal-ov').classList.contains('open')) this.submitApp();
+      }
+    });
+  }
+
+  /**
+   * Wires up the category filter buttons on the boards tab.
+   */
+  _setupCategoryFilters() {
+    document.getElementById('cat-filters').addEventListener('click', e => {
+      const button = e.target.closest('.flt');
+      if (!button) return;
+      this.activeCat = button.dataset.cat;
+      document.querySelectorAll('.flt').forEach(b => {
+        b.classList.toggle('active', b.dataset.cat === this.activeCat);
+      });
+      this.renderBoards();
+    });
+  }
+
+  /**
+   * Wires up drag-and-drop file uploads on the document drop zone.
+   */
+  _setupDocDropZone() {
+    const zone = document.getElementById('doc-drop-zone');
+    if (!zone) return;
+    zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag'); });
+    zone.addEventListener('dragleave', () => { zone.classList.remove('drag'); });
+    zone.addEventListener('drop', e => {
+      e.preventDefault();
+      zone.classList.remove('drag');
+      const file = e.dataTransfer.files[0];
+      if (file) this.uploadFile(file);
+    });
+  }
+
+  /**
+   * Wires up the Enter key shortcut on the link URL field to submit the form.
+   */
+  _setupLinkEnterKey() {
+    document.getElementById('l-url').addEventListener('keydown', e => {
+      if (e.key === 'Enter') this.addLink();
+    });
+  }
+}
+
+
+/**
+ * Escapes HTML special characters to prevent XSS in template strings.
+ * @param {any} value - The value to escape.
+ * @returns {string}
+ */
+function esc(value) {
+  if (value == null) return '';
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/**
+ * Copies text to the clipboard and shows a toast notification.
+ * @param {string} text - The text to copy.
+ * @param {string} message - The toast message to show on success.
+ */
+function copyText(text, message = 'Copied!') {
+  navigator.clipboard.writeText(text).then(() => toast(message));
+}
+
+let _toastTimer;
+/**
+ * Shows a brief toast notification at the bottom-right of the screen.
+ * @param {string} message - The message to display.
+ */
+function toast(message) {
+  const el = document.getElementById('toast');
+  el.textContent = message;
+  el.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
+}
+
+
+const app = new App();
+document.addEventListener('DOMContentLoaded', () => app.init());
+</script>
+</body>
+</html>
